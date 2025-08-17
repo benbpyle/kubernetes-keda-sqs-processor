@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sqs-processor
+  labels:
+    app: sqs-processor
+spec:
+  replicas: 1  # Initial replica count, KEDA will scale this
+  selector:
+    matchLabels:
+      app: sqs-processor
+  template:
+    metadata:
+      labels:
+        app: sqs-processor
+    spec:
+      containers:
+      - name: sqs-processor
+        image: sqs-processor:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: AWS_REGION
+          value: "us-east-1"  # Replace with your AWS region
+        - name: RUST_LOG
+          value: "info"
+        # AWS credentials should be provided via IAM roles for service accounts
+        # or via environment variables/secrets
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi

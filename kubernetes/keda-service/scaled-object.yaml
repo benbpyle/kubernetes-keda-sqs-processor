@@ -1,0 +1,24 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: sqs-processor-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: sqs-processor  # Name of the deployment to scale
+  minReplicaCount: 0     # Minimum number of replicas
+  maxReplicaCount: 10    # Maximum number of replicas
+  pollingInterval: 15    # How frequently to check the metrics (in seconds)
+  cooldownPeriod: 300    # Period to wait after last trigger before scaling down
+  triggers:
+  - type: aws-sqs-queue
+    metadata:
+      queueURL: https://sqs.us-east-1.amazonaws.com/123456789012/my-queue  # Replace with your SQS queue URL
+      queueLength: "5"   # Target messages per pod
+      awsRegion: "us-east-1"  # Replace with your AWS region
+      identityOwner: "pod"  # Use IAM role attached to pod
+      # If using AWS credentials from a secret, uncomment and configure these:
+      # awsAccessKeyID: AWS_ACCESS_KEY_ID
+      # awsSecretAccessKey: AWS_SECRET_ACCESS_KEY
+      # awsAccessKeyID-from-env: AWS_ACCESS_KEY_ID
+      # awsSecretAccessKey-from-env: AWS_SECRET_ACCESS_KEY
