@@ -5,7 +5,7 @@ set -e
 # This script assumes you have the AWS CLI installed and configured
 
 # Variables - replace these with your own values
-CLUSTER_NAME="your-eks-cluster-name"
+CLUSTER_NAME="sandbox"
 AWS_REGION="us-west-2"
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
@@ -42,7 +42,7 @@ if ! aws iam get-policy --policy-arn $POLICY_ARN &> /dev/null; then
                     "sqs:ListQueueTags",
                     "sqs:ReceiveMessage"
                 ],
-                "Resource": "*"
+                "Resource": "TODO"
             }
         ]
     }'
@@ -63,11 +63,13 @@ eksctl create iamserviceaccount \
 
 echo "IAM role and service account for KEDA have been created."
 echo "Now you need to update your KEDA installation to use the service account."
-echo "If you're using Helm, you can update your values.yaml file to include:"
 echo ""
-echo "serviceAccount:"
-echo "  create: false"
-echo "  name: keda-operator"
+echo "Option 1: Use the update-keda-irsa.sh script (recommended):"
+echo "chmod +x kubernetes/scripts/update-keda-irsa.sh"
+echo "./kubernetes/scripts/update-keda-irsa.sh"
 echo ""
-echo "Then update your KEDA installation with:"
-echo "helm upgrade keda kedacore/keda --namespace keda -f values.yaml"
+echo "Option 2: If you're using Helm, you can update manually with:"
+echo "helm upgrade keda kedacore/keda --namespace keda -f kubernetes/keda-values.yaml"
+echo ""
+echo "Option 3: Or use command line parameters:"
+echo "helm upgrade keda kedacore/keda --namespace keda --set serviceAccount.create=false --set serviceAccount.name=keda-operator"

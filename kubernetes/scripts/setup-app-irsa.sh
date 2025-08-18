@@ -5,7 +5,7 @@ set -e
 # This script assumes you have the AWS CLI installed and configured
 
 # Variables - replace these with your own values
-CLUSTER_NAME="your-eks-cluster-name"
+CLUSTER_NAME="sandbox"
 AWS_REGION="us-west-2"
 NAMESPACE="default"
 SERVICE_ACCOUNT_NAME="sqs-processor-sa"
@@ -23,6 +23,15 @@ fi
 if ! aws eks describe-cluster --name $CLUSTER_NAME --region $AWS_REGION &> /dev/null; then
     echo "Cluster $CLUSTER_NAME does not exist in region $AWS_REGION."
     exit 1
+fi
+
+# Associate IAM OIDC provider with the cluster if not already associated
+echo "Checking if IAM OIDC provider is associated with the cluster..."
+if ! eksctl utils describe-stacks --region=$AWS_REGION --cluster=$CLUSTER_NAME | grep -q "IAMOIDCProvider"; then
+    echo "No IAM OIDC provider found. Associating IAM OIDC provider with the cluster..."
+    eksctl utils associate-iam-oidc-provider --region=$AWS_REGION --cluster=$CLUSTER_NAME --approve
+else
+    echo "IAM OIDC provider is already associated with the cluster."
 fi
 
 # Create an IAM policy for the application to access SQS
@@ -47,7 +56,7 @@ if ! aws iam get-policy --policy-arn $POLICY_ARN &> /dev/null; then
                     "sqs:SendMessage",
                     "sqs:ChangeMessageVisibility"
                 ],
-                "Resource": "*"
+                "Resource": "TODO"
             }
         ]
     }'

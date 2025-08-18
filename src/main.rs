@@ -27,15 +27,78 @@ fn init_logger(log_level: &str) {
 
 /// Load configuration
 fn load_config() -> Result<Config> {
-    // For simplicity, we're using default config
-    // In a real application, you would load from environment variables or a config file
-    Ok(Config::default())
+    use std::env;
+
+    // Load SQS configuration from environment variables
+    let queue_url = env::var("SQS_QUEUE_URL")
+        .context("SQS_QUEUE_URL environment variable not set")?;
+
+    let max_messages = env::var("SQS_MAX_MESSAGES")
+        .unwrap_or_else(|_| "10".to_string())
+        .parse::<i32>()
+        .context("Invalid SQS_MAX_MESSAGES value")?;
+
+    let wait_time_seconds = env::var("SQS_WAIT_TIME_SECONDS")
+        .unwrap_or_else(|_| "20".to_string())
+        .parse::<i32>()
+        .context("Invalid SQS_WAIT_TIME_SECONDS value")?;
+
+    let visibility_timeout = env::var("SQS_VISIBILITY_TIMEOUT")
+        .unwrap_or_else(|_| "30".to_string())
+        .parse::<i32>()
+        .context("Invalid SQS_VISIBILITY_TIMEOUT value")?;
+
+    // Load health configuration
+    let health_host = env::var("HEALTH_HOST")
+        .unwrap_or_else(|_| "0.0.0.0".to_string());
+
+    let health_port = env::var("HEALTH_PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .context("Invalid HEALTH_PORT value")?;
+
+    // Load logging configuration
+    let log_level = env::var("RUST_LOG")
+        .unwrap_or_else(|_| "info".to_string());
+
+    // Create a default config and update it with values from environment variables
+    let mut config = Config::default();
+
+    // Update SQS config
+    config.sqs.queue_url = queue_url;
+    config.sqs.max_messages = max_messages;
+    config.sqs.wait_time_seconds = wait_time_seconds;
+    config.sqs.visibility_timeout = visibility_timeout;
+
+    // Update health config
+    config.health.host = health_host;
+    config.health.port = health_port;
+
+    // Update logging config
+    config.logging.level = log_level;
+
+    Ok(config)
 }
 
 /// Initialize AWS SQS client
 async fn init_sqs_client() -> Result<SqsClient> {
-    let region_provider = RegionProviderChain::default_provider();
-    let config = aws_config::from_env().region(region_provider).load().await;
+    use std::env;
+    use aws_types::region::Region;
+
+    // Explicitly get the AWS region from environment variable
+    let region_str = env::var("AWS_REGION")
+        .context("AWS_REGION environment variable not set")?;
+
+    info!("Using AWS region: {}", region_str);
+
+    // Create a region object from the region string
+    let region = Region::new(region_str);
+
+    let config = aws_config::from_env()
+        .region(region)
+        .load()
+        .await;
+
     Ok(SqsClient::new(&config))
 }
 

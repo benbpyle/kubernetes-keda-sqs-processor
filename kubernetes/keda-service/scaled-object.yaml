@@ -13,12 +13,7 @@ spec:
   triggers:
   - type: aws-sqs-queue
     metadata:
-      queueURL: https://sqs.us-east-1.amazonaws.com/123456789012/my-queue  # Replace with your SQS queue URL
+      queueURL: TODO  # Replace with your SQS queue URL
       queueLength: "5"   # Target messages per pod
-      awsRegion: "us-east-1"  # Replace with your AWS region
-      identityOwner: "pod"  # Use IAM role attached to pod
-      # If using AWS credentials from a secret, uncomment and configure these:
-      # awsAccessKeyID: AWS_ACCESS_KEY_ID
-      # awsSecretAccessKey: AWS_SECRET_ACCESS_KEY
-      # awsAccessKeyID-from-env: AWS_ACCESS_KEY_ID
-      # awsSecretAccessKey-from-env: AWS_SECRET_ACCESS_KEY
+      awsRegion: "us-west-2"  # Replace with your AWS region
+      identityOwner: "operator"  # Use IAM role attached to KEDA operator's service account

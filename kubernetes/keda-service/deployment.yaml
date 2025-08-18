@@ -14,17 +14,15 @@ spec:
       labels:
         app: sqs-processor
     spec:
+      serviceAccountName: sqs-processor-sa
       containers:
       - name: sqs-processor
-        image: sqs-processor:latest
+        image: public.ecr.aws/f8u4w2p3/rust-sqs-processor:1.0.0
         imagePullPolicy: IfNotPresent
-        env:
-        - name: AWS_REGION
-          value: "us-east-1"  # Replace with your AWS region
-        - name: RUST_LOG
-          value: "info"
-        # AWS credentials should be provided via IAM roles for service accounts
-        # or via environment variables/secrets
+        envFrom:
+        - configMapRef:
+            name: sqs-processor-config
+        # AWS credentials are provided via IAM roles for service accounts (IRSA)
         ports:
         - containerPort: 8080
           name: http

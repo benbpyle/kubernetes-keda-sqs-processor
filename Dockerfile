@@ -1,26 +1,23 @@
-# Build stage
-FROM rust:1.80-slim AS builder
-
+# Planner stage - Use cargo-chef to create a recipe.json
+FROM rust:1.80-slim AS planner
 WORKDIR /app
-
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
-
-# Create a dummy main.rs to build dependencies
-RUN mkdir -p src && \
-    echo 'fn main() { println!("Hello, world!"); }' > src/main.rs && \
-    cargo build --release || true && \
-    rm -rf src
-
-# Copy source code
+RUN cargo install cargo-chef
 COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Build the application
+# Builder stage - Build dependencies and application
+FROM rust:1.80-slim AS builder
+WORKDIR /app
+RUN cargo install cargo-chef
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching layer
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application - this will only rebuild when the source code changes
+COPY . .
 RUN cargo build --release
 
 # Runtime stage
-FROM debian:bullseye-slim AS runtime
-
+FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
 # Install runtime dependencies
