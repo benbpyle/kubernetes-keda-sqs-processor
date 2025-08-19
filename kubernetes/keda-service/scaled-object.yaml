@@ -13,7 +13,9 @@ spec:
   triggers:
   - type: aws-sqs-queue
     metadata:
-      queueURL: TODO  # Replace with your SQS queue URL
+      queueURL: https://sqs.us-west-2.amazonaws.com/{AWS_ACCOUNT_ID}/sqs-processor-queue  # Replace with your SQS queue URL
       queueLength: "5"   # Target messages per pod
       awsRegion: "us-west-2"  # Replace with your AWS region
-      identityOwner: "operator"  # Use IAM role attached to KEDA operator's service account
+      identityOwner: "pod"  # Use IAM role attached to the application pod's service account
+    authenticationRef:
+      name: aws-pod-identity  # Reference to the TriggerAuthentication resource

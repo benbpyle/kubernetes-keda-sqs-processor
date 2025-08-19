@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sqs-processor-config
+  labels:
+    app: sqs-processor
+data:
+  SQS_QUEUE_URL: "https://sqs.us-west-2.amazonaws.com/{AWS_ACCOUNT_ID}/sqs-processor-queue"
+  SQS_MAX_MESSAGES: "10"
+  SQS_WAIT_TIME_SECONDS: "20"
+  SQS_VISIBILITY_TIMEOUT: "30"
+  HEALTH_HOST: "0.0.0.0"
+  HEALTH_PORT: "8080"
+  AWS_REGION: "us-west-2"
+  RUST_LOG: "info"

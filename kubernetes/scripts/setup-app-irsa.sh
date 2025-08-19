@@ -56,7 +56,7 @@ if ! aws iam get-policy --policy-arn $POLICY_ARN &> /dev/null; then
                     "sqs:SendMessage",
                     "sqs:ChangeMessageVisibility"
                 ],
-                "Resource": "TODO"
+                "Resource": "arn:aws:sqs:$AWS_REGION:$AWS_ACCOUNT_ID:sqs-processor-queue"
             }
         ]
     }'
@@ -76,10 +76,86 @@ eksctl create iamserviceaccount \
     --override-existing-serviceaccounts
 
 echo "IAM role and service account for the SQS Processor application have been created."
-echo "Now you need to update your deployment to use the service account."
-echo "Add the following to your deployment.yaml file under spec.template.spec:"
+
+# Get the ARN of the created role
+APP_ROLE_ARN=$(kubectl get serviceaccount $SERVICE_ACCOUNT_NAME -n $NAMESPACE -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}')
+if [ -z "$APP_ROLE_ARN" ]; then
+    echo "❌ Failed to get the role ARN from the service account"
+    exit 1
+fi
+
+echo "Application service account created with role ARN: $APP_ROLE_ARN"
+
+# Check if KEDA operator service account exists and set up cross-role trust
+if kubectl get serviceaccount keda-operator -n keda &> /dev/null; then
+    echo ""
+    echo "🔗 Setting up cross-role trust relationship with KEDA..."
+    
+    KEDA_ROLE_ARN=$(kubectl get serviceaccount keda-operator -n keda -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}')
+    if [ -z "$KEDA_ROLE_ARN" ]; then
+        echo "⚠️  KEDA operator service account exists but doesn't have IRSA annotation."
+        echo "Please run ./kubernetes/scripts/setup-keda-irsa.sh first"
+    else
+        # Extract role name from ARN
+        APP_ROLE_NAME=$(echo $APP_ROLE_ARN | cut -d'/' -f2)
+        
+        # Get the OIDC issuer URL for the cluster
+        OIDC_ISSUER=$(aws eks describe-cluster --name $CLUSTER_NAME --region $AWS_REGION --query "cluster.identity.oidc.issuer" --output text)
+        OIDC_HOST=$(echo $OIDC_ISSUER | sed 's|https://||')
+
+        # Create a trust policy document that allows both OIDC (for app) and KEDA role to assume the app role
+        TRUST_POLICY=$(cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/$OIDC_HOST"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "$OIDC_HOST:sub": "system:serviceaccount:$NAMESPACE:$SERVICE_ACCOUNT_NAME",
+          "$OIDC_HOST:aud": "sts.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "$KEDA_ROLE_ARN"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+        )
+
+        # Update the trust policy of the app role
+        echo "Updating trust policy to allow both OIDC and KEDA access..."
+        aws iam update-assume-role-policy --role-name $APP_ROLE_NAME --policy-document "$TRUST_POLICY"
+        
+        echo "✅ Cross-role trust relationship configured!"
+        echo "KEDA can now assume this application role for SQS metrics access."
+    fi
+else
+    echo ""
+    echo "⚠️  KEDA operator service account not found."
+    echo "Cross-role trust will be set up when you run setup-keda-irsa.sh"
+fi
+
 echo ""
-echo "serviceAccountName: $SERVICE_ACCOUNT_NAME"
+echo "✅ Application IRSA setup complete!"
 echo ""
-echo "Then apply the updated deployment with:"
-echo "kubectl apply -f kubernetes/keda-service/deployment.yaml"
+echo "📝 Next steps:"
+echo "1. Verify your deployment uses the service account:"
+echo "   Check that kubernetes/keda-service/deployment.yaml contains:"
+echo "   serviceAccountName: $SERVICE_ACCOUNT_NAME"
+echo ""
+echo "2. Apply your Kubernetes manifests:"
+echo "   kubectl apply -f kubernetes/keda-service/"
+echo ""
+echo "3. Verify the ScaledObject is working:"
+echo "   kubectl get scaledobject sqs-processor-scaler -n default"

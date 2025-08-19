@@ -1,0 +1,8 @@
+#podIdentity:
+#  provider: aws
+#  roleArn: "arn:aws:iam::{AWS_ACCOUNT_ID}:role/eksctl-{CLUSTER_NAME}-addon-iamserviceaccount-keda-k-Role1-{RANDOM_SUFFIX}" # Optional.
+#  identityOwner: keda # Optional. If not set, 'keda' is default v
+
+serviceAccount:
+  create: false
+  name: keda-operator

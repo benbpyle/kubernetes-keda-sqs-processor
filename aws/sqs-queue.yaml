@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for creating a standard SQS queue'
+
+Parameters:
+  QueueName:
+    Type: String
+    Description: Name of the SQS queue
+    Default: sqs-processor-queue
+
+  VisibilityTimeout:
+    Type: Number
+    Description: The visibility timeout for the queue (in seconds)
+    Default: 30
+    MinValue: 0
+    MaxValue: 43200
+
+  MessageRetentionPeriod:
+    Type: Number
+    Description: The message retention period (in seconds)
+    Default: 345600  # 4 days
+    MinValue: 60
+    MaxValue: 1209600  # 14 days
+
+  DelaySeconds:
+    Type: Number
+    Description: The time in seconds that the delivery of all messages in the queue will be delayed
+    Default: 0
+    MinValue: 0
+    MaxValue: 900  # 15 minutes
+
+Resources:
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+      VisibilityTimeout: !Ref VisibilityTimeout
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      DelaySeconds: !Ref DelaySeconds
+
+Outputs:
+  QueueURL:
+    Description: URL of the SQS Queue
+    Value: !Ref SQSQueue
+    
+  QueueARN:
+    Description: ARN of the SQS Queue
+    Value: !GetAtt SQSQueue.Arn
+    
+  QueueName:
+    Description: Name of the SQS Queue
+    Value: !GetAtt SQSQueue.QueueName
